@@ -29,6 +29,20 @@ const categoriesSnapshot = await getDocs(categoriesCol);
 const categories: Category[] = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
 ---
 
+{/* ¡NUEVO! Script de protección en el cliente */}
+<script is:inline>
+  import { auth } from '../../lib/firebase';
+  import { onAuthStateChanged } from 'firebase/auth';
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      // Si no hay usuario, redirigir al login
+      window.location.href = '/admin/login';
+    }
+  });
+</script>
+
+
 <Layout title="Panel de Administración">
   <div class="container mx-auto mt-10 px-4">
     <div class="flex justify-between items-center mb-6">
