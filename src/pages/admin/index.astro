@@ -4,9 +4,9 @@ import { db } from '../../lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
 // Protección de ruta
-if (!Astro.cookies.has('user-session')) {
-  return Astro.redirect('/admin/login');
-}
+//if (!Astro.cookies.has('user-session')) {
+  //return Astro.redirect('/admin/login');
+//}
 
 // Obtenemos los PROYECTOS
 type Project = {
