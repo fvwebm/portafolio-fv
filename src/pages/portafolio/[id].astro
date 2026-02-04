@@ -1,0 +1,49 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
+const { id } = Astro.params;
+
+// Nos aseguramos de que 'id' exista antes de usarlo
+if (!id) {
+  return new Response("ID de proyecto no encontrado", { status: 404 });
+}
+
+const projectRef = doc(db, 'projects', id);
+const projectSnap = await getDoc(projectRef);
+
+// Si el proyecto no existe, Astro mostrará automáticamente su página 404
+if (!projectSnap.exists()) {
+  return Astro.redirect('/404');
+}
+
+const project = projectSnap.data();
+---
+
+<Layout title={project.title}>
+  <div class="container mx-auto mt-10 px-4 max-w-4xl">
+    
+    {/* Encabezado del Proyecto */}
+    <div class="text-center mb-8">
+      <span class="text-blue-400 font-semibold">{project.category_name}</span>
+      <h1 class="text-4xl md:text-5xl font-bold mt-2">{project.title}</h1>
+    </div>
+
+    {/* Imagen Principal */}
+    <div class="mb-8">
+      <img src={project.cover_image_url || 'https://via.placeholder.com/800x450.png?text=Freddy+Vásquez'} alt={`Imagen de ${project.title}`} class="w-full rounded-lg shadow-lg">
+    </div>
+
+    {/* Descripción del Proyecto */}
+    {/* Usamos set:html para que pueda interpretar saltos de línea si los hubiera */}
+    <div class="prose prose-invert max-w-none text-lg" set:html={project.description.replace(/\n/g, '<br/>')} />
+
+    {/* Botón para volver al portafolio */}
+    <div class="text-center mt-12">
+      <a href="/portafolio" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+        &larr; Volver al Portafolio
+      </a>
+    </div>
+  </div>
+</Layout>

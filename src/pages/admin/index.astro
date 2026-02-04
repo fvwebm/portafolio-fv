@@ -1,0 +1,159 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { db } from '../../lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+
+// Protección de ruta
+if (!Astro.cookies.has('user-session')) {
+  return Astro.redirect('/admin/login');
+}
+
+// Obtenemos los PROYECTOS
+type Project = {
+  id: string;
+  title: string;
+  category_name: string;
+  published_at: { toDate: () => Date };
+}
+const projectsCol = collection(db, 'projects');
+const projectsSnapshot = await getDocs(projectsCol);
+const projects: Project[] = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+
+// Obtenemos las CATEGORÍAS
+type Category = {
+  id: string;
+  name: string;
+}
+const categoriesCol = collection(db, 'categories');
+const categoriesSnapshot = await getDocs(categoriesCol);
+const categories: Category[] = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+---
+
+<Layout title="Panel de Administración">
+  <div class="container mx-auto mt-10 px-4">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-4xl font-bold">Panel de Administración</h1>
+      <button id="logout-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+        Cerrar Sesión
+      </button>
+    </div>
+    <p class="mb-8">¡Bienvenido, Freddy! Aquí podrás gestionar tus proyectos y servicios.</p>
+
+    {/* --- SECCIÓN DE PROYECTOS --- */}
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-2xl font-bold">Mis Proyectos</h2>
+      <a href="/admin/new-project" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+        + Nuevo Proyecto
+      </a>
+    </div>
+    <div class="bg-gray-800 rounded-lg shadow-lg overflow-x-auto mb-12">
+      <table class="min-w-full text-left">
+        <thead class="bg-gray-700">
+          <tr>
+            <th class="p-4">Título</th>
+            <th class="p-4">Categoría</th>
+            <th class="p-4">Fecha de Publicación</th>
+            <th class="p-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {projects.map(project => (
+            <tr class="border-t border-gray-700" id={`project-row-${project.id}`}>
+              <td class="p-4">{project.title}</td>
+              <td class="p-4">{project.category_name}</td>
+              <td class="p-4">{project.published_at.toDate().toLocaleDateString('es-ES')}</td>
+              <td class="p-4 space-x-2">
+                <a href={`/admin/edit/${project.id}`} class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm">Editar</a>
+                <button data-id={project.id} class="delete-btn bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-sm">Eliminar</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* --- GESTIÓN DE CATEGORÍAS --- */}
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-2xl font-bold">Mis Categorías</h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="bg-gray-800 rounded-lg shadow-lg p-4">
+        <table class="min-w-full text-left">
+          <thead class="bg-gray-700">
+            <tr>
+              <th class="p-4">Nombre</th>
+              <th class="p-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map(category => (
+              <tr class="border-t border-gray-700" id={`category-row-${category.id}`}>
+                <td class="p-4">{category.name}</td>
+                <td class="p-4">
+                  <button data-id={category.id} class="delete-category-btn bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-sm">Eliminar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+        <h3 class="text-xl font-bold mb-4">Añadir Nueva Categoría</h3>
+        <form id="new-category-form">
+          <div class="mb-4">
+            <label for="category-name" class="block mb-2">Nombre de la Categoría</label>
+            <input type="text" id="category-name" name="category-name" class="w-full p-2 rounded bg-gray-700 border border-gray-600" required />
+          </div>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Guardar Categoría
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { auth, db } from '../../lib/firebase';
+  import { signOut } from 'firebase/auth';
+  import { doc, deleteDoc, collection, addDoc } from 'firebase/firestore';
+
+  // Lógica de Logout
+  const logoutButton = document.getElementById('logout-button');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', async () => {
+      try { await signOut(auth); document.cookie = "user-session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"; window.location.href = '/admin/login'; } catch (error) { console.error('Error al cerrar sesión:', error); }
+    });
+  }
+
+  // Lógica de Delete de Proyectos
+  const deleteButtons = document.querySelectorAll('.delete-btn');
+  deleteButtons.forEach(button => {
+    button.addEventListener('click', async (event) => {
+      const projectId = (event.target as HTMLElement).dataset.id;
+      if (!projectId || !confirm('¿Estás seguro de que quieres eliminar este proyecto?')) return;
+      try { await deleteDoc(doc(db, 'projects', projectId)); document.getElementById(`project-row-${projectId}`)?.remove(); } catch (error) { console.error('Error al eliminar proyecto:', error); alert('No se pudo eliminar el proyecto.'); }
+    });
+  });
+
+  // Lógica para Crear Categorías
+  const newCategoryForm = document.getElementById('new-category-form');
+  if (newCategoryForm) {
+    newCategoryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = (document.getElementById('category-name') as HTMLInputElement).value;
+      if (!name) return alert('Por favor, escribe un nombre.');
+      try { await addDoc(collection(db, 'categories'), { name: name, slug: name.toLowerCase().replace(/\s+/g, '-') }); alert('¡Categoría guardada!'); window.location.reload(); } catch (error) { console.error("Error:", error); alert('Hubo un error al guardar.'); }
+    });
+  }
+
+  // Lógica para Eliminar Categorías
+  const deleteCategoryButtons = document.querySelectorAll('.delete-category-btn');
+  deleteCategoryButtons.forEach(button => {
+    button.addEventListener('click', async (event) => {
+      const categoryId = (event.target as HTMLElement).dataset.id;
+      if (!categoryId || !confirm('¿Estás seguro de que quieres eliminar esta categoría?')) return;
+      try { await deleteDoc(doc(db, 'categories', categoryId)); document.getElementById(`category-row-${categoryId}`)?.remove(); } catch (error) { console.error('Error al eliminar categoría:', error); alert('No se pudo eliminar la categoría.'); }
+    });
+  });
+</script>

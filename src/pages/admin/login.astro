@@ -1,0 +1,63 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="Admin Login">
+  <div class="flex justify-center items-center mt-20">
+    <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md">
+      <h1 class="text-3xl font-bold text-center mb-6">Admin Login</h1>
+      
+      <form id="login-form">
+        <div class="mb-4">
+          <label for="email" class="block mb-2">Email</label>
+          <input type="email" id="email" name="email" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500" required />
+        </div>
+        
+        <div class="mb-6">
+          <label for="password" class="block mb-2">Contraseña</label>
+          <input type="password" id="password" name="password" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500" required />
+        </div>
+        
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+          Iniciar Sesión
+        </button>
+      </form>
+      
+      <p id="error-message" class="text-red-500 text-center mt-4"></p>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { auth } from "../../lib/firebase";
+  import { signInWithEmailAndPassword } from "firebase/auth";
+
+  const form = document.getElementById("login-form");
+  const errorMessageElement = document.getElementById("error-message");
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = (document.getElementById("email") as HTMLInputElement).value;
+    const password = (document.getElementById("password") as HTMLInputElement).value;
+
+    try {
+      // 1. Iniciar sesión con Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await userCredential.user.getIdToken();
+
+      // 2. ¡NUEVO! Llamar a nuestra API para crear la cookie
+      await fetch('/api/auth/set-cookie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: idToken }),
+      });
+
+      // 3. Redirigir al panel de administración
+      window.location.href = "/admin"; 
+
+    } catch (error) {
+      console.error("Error de inicio de sesión:", error.message);
+      errorMessageElement.textContent = "Error: Email o contraseña incorrectos.";
+    }
+  });
+</script>
