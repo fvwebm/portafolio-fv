@@ -1,32 +1,52 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 ---
-
 <Layout title="Admin Login">
   <div class="flex justify-center items-center mt-20">
-    <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md">
-      <h1 class="text-3xl font-bold text-center mb-6">Admin Login</h1>
+    <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md border border-gray-700">
+      <h1 class="text-3xl font-bold text-center mb-6 text-white">Admin Login</h1>
       
-      <form id="login-form">
+      {/* Añadimos autocomplete="off" al formulario principal */}
+      <form id="login-form" autocomplete="off">
         <div class="mb-4">
-          <label for="email" class="block mb-2">Email</label>
-          <input type="email" id="email" name="email" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500" required />
+          <label for="email" class="block mb-2 text-white">Email</label>
+          {/* Añadimos autocomplete="new-password" para despistar al navegador */}
+          <input 
+            type="email" 
+            id="email" 
+            class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white outline-none focus:border-blue-500" 
+            required 
+            autocomplete="off"
+          />
         </div>
-        
         <div class="mb-6">
-          <label for="password" class="block mb-2">Contraseña</label>
-          <input type="password" id="password" name="password" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500" required />
+          <label for="password" class="block mb-2 text-white">Contraseña</label>
+          <input 
+            type="password" 
+            id="password" 
+            class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white outline-none focus:border-blue-500" 
+            required 
+            autocomplete="new-password"
+          />
         </div>
-        
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-          Iniciar Sesión
-        </button>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">Iniciar Sesión</button>
       </form>
-      
       <p id="error-message" class="text-red-500 text-center mt-4"></p>
     </div>
   </div>
 </Layout>
+
+<style is:global>
+  /* ¡LA CORRECCIÓN VISUAL CLAVE! */
+  /* Este código obliga al navegador a mantener el fondo oscuro aunque autcomplete */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: white !important;
+    -webkit-box-shadow: 0 0 0px 1000px #374151 inset !important; /* Color gray-700 */
+    transition: background-color 5000s ease-in-out 0s;
+  }
+</style>
 
 <script>
   import { auth } from "../../lib/firebase";
@@ -35,29 +55,21 @@ import Layout from "../../layouts/Layout.astro";
   const form = document.getElementById("login-form");
   const errorMessageElement = document.getElementById("error-message");
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const email = (document.getElementById("email") as HTMLInputElement).value;
-    const password = (document.getElementById("password") as HTMLInputElement).value;
+  if (form) {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      
+      // Accedemos a los valores directamente (JavaScript puro)
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-    try {
-      // 1. Iniciar sesión con Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const idToken = await userCredential.user.getIdToken();
-
-      // 2. ¡NUEVO! Llamar a nuestra API para crear la cookie
-      await fetch('/api/auth/set-cookie', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: idToken }),
-      });
-
-      // 3. Redirigir al panel de administración
-      window.location.href = "/admin"; 
-
-    } catch (error) {
-      console.error("Error de inicio de sesión:", error.message);
-      errorMessageElement.textContent = "Error: Email o contraseña incorrectos.";
-    }
-  });
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        window.location.href = "/admin"; 
+      } catch (error) {
+        console.error("Error:", error);
+        if (errorMessageElement) errorMessageElement.textContent = "Acceso denegado. Verifique sus datos.";
+      }
+    });
+  }
 </script>

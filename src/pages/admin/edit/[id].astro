@@ -1,100 +1,83 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import { db } from '../../../lib/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-
-export async function getStaticPaths() {
-  const projectsCol = collection(db, 'projects');
-  const projectsSnapshot = await getDocs(projectsCol);
-  
-  const paths = await Promise.all(projectsSnapshot.docs.map(async (docSnap) => {
-    const projectData = docSnap.data();
-    const categoriesCol = collection(db, 'categories');
-    const categoriesSnapshot = await getDocs(categoriesCol);
-    const categories = categoriesSnapshot.docs.map(catDoc => ({ id: catDoc.id, ...catDoc.data() }));
-
-    return {
-      params: { id: docSnap.id },
-      props: { projectData, categories },
-    };
-  }));
-  
-  return paths;
-}
-
-// Ahora obtenemos los datos desde las 'props' generadas por getStaticPaths
-const { projectData, categories } = Astro.props;
 ---
+<Layout title="Editar Proyecto">
+  <div id="loading-screen" class="flex justify-center items-center h-64 text-white">
+    <p class="text-xl italic animate-pulse">Cargando datos...</p>
+  </div>
 
-<Layout title={`Editando: ${projectData.title}`}>
-  <div class="container mx-auto mt-10 px-4">
-    <h1 class="text-4xl font-bold mb-6">Editando Proyecto</h1>
-    
-    <form id="edit-project-form" class="bg-gray-800 p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
+  <div id="admin-content" class="hidden container mx-auto mt-10 px-4 text-white">
+    <h1 class="text-4xl font-bold mb-6 text-center">Editar Proyecto</h1>
+    <form id="edit-project-form" class="bg-gray-800 p-8 rounded-lg shadow-lg max-w-2xl mx-auto border border-gray-700">
       <div class="mb-4">
-        <label for="title" class="block mb-2">Título del Proyecto</label>
-        <input type="text" id="title" name="title" value={projectData.title} class="w-full p-2 rounded bg-gray-700 border border-gray-600" required />
+        <label class="block mb-2 text-white">Título</label>
+        <input type="text" id="title" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" required />
       </div>
-
       <div class="mb-4">
-        <label for="category" class="block mb-2">Categoría</label>
-        <select id="category" name="category" class="w-full p-2 rounded bg-gray-700 border border-gray-600" required>
-          {categories.map(category => (
-            <option value={category.name} selected={projectData.category_name === category.name}>{category.name}</option>
-          ))}
-        </select>
+        <label class="block mb-2 text-white">Categoría</label>
+        <select id="category-select" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" required></select>
       </div>
-
       <div class="mb-4">
-        <label for="description" class="block mb-2">Descripción</label>
-        <textarea id="description" name="description" rows="4" class="w-full p-2 rounded bg-gray-700 border border-gray-600">{projectData.description}</textarea>
+        <label class="block mb-2 text-white">Descripción</label>
+        <textarea id="description" rows="4" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"></textarea>
       </div>
-
       <div class="mb-4">
-        <label for="cover_image_url" class="block mb-2">URL de la Imagen de Portada</label>
-        <input type="text" id="cover_image_url" name="cover_image_url" value={projectData.cover_image_url || ''} class="w-full p-2 rounded bg-gray-700 border border-gray-600" />
+        <label class="block mb-2 text-white">URL Imagen</label>
+        <input type="text" id="cover_image_url" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" />
       </div>
-      
-      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-        Actualizar Proyecto
-      </button>
-
-      <p id="success-message" class="text-green-500 text-center mt-4"></p>
+      <button type="submit" class="w-full bg-blue-600 py-2 rounded font-bold text-white">Actualizar</button>
     </form>
   </div>
 </Layout>
 
 <script>
-  import { db } from '../../../lib/firebase';
-  import { doc, updateDoc } from 'firebase/firestore';
+  import { auth, db } from '../../../lib/firebase';
+  import { onAuthStateChanged } from 'firebase/auth';
+  import { doc, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
 
-  const form = document.getElementById('edit-project-form');
-  const successMessage = document.getElementById('success-message');
-  
-  const projectId = window.location.pathname.split('/').pop();
+  const id = window.location.pathname.split('/').pop();
 
-  if (form && projectId) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if(successMessage) successMessage.textContent = '';
+  onAuthStateChanged(auth, async (user) => {
+    if (user && id) {
+      await loadInitialData(id);
+      document.getElementById('admin-content').classList.remove('hidden');
+      document.getElementById('loading-screen').classList.add('hidden');
+    } else {
+      window.location.href = '/admin/login';
+    }
+  });
 
-      const formData = new FormData(form as HTMLFormElement);
-      const updatedData = {
-        title: formData.get('title'),
-        category_name: formData.get('category'),
-        description: formData.get('description'),
-        cover_image_url: formData.get('cover_image_url'),
-      };
+  async function loadInitialData(projectId) {
+    const pSnap = await getDoc(doc(db, 'projects', projectId));
+    const cSnap = await getDocs(collection(db, 'categories'));
+    
+    if (pSnap.exists()) {
+      const p = pSnap.data();
+      document.getElementById('title').value = p.title;
+      document.getElementById('description').value = p.description;
+      document.getElementById('cover_image_url').value = p.cover_image_url;
 
-      try {
-        const projectRef = doc(db, 'projects', projectId);
-        await updateDoc(projectRef, updatedData);
-        
-        if(successMessage) successMessage.textContent = '¡Proyecto actualizado con éxito!';
-      } catch (error) {
-        console.error("Error al actualizar el proyecto:", error);
-        alert('Hubo un error al actualizar el proyecto.');
-      }
-    });
+      const select = document.getElementById('category-select');
+      cSnap.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.data().name;
+        opt.textContent = d.data().name;
+        if(d.data().name === p.category_name) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
   }
+
+  document.getElementById('edit-project-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (id) {
+      await updateDoc(doc(db, 'projects', id), {
+        title: document.getElementById('title').value,
+        category_name: document.getElementById('category-select').value,
+        description: document.getElementById('description').value,
+        cover_image_url: document.getElementById('cover_image_url').value,
+      });
+      window.location.href = '/admin';
+    }
+  });
 </script>
