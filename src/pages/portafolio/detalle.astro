@@ -1,0 +1,41 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Detalle del Proyecto">
+  <div id="loading-screen" class="flex justify-center items-center h-64 text-white">
+    <p class="text-xl italic animate-pulse text-white">Cargando proyecto...</p>
+  </div>
+  <div id="project-content" class="hidden container mx-auto mt-10 px-4 max-w-4xl text-white text-center">
+    <!-- El contenido se llenará dinámicamente -->
+  </div>
+</Layout>
+
+<script>
+  import { db } from '../../lib/firebase';
+  import { doc, getDoc } from 'firebase/firestore';
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get('id');
+  const contentDiv = document.getElementById('project-content');
+  const loadingDiv = document.getElementById('loading-screen');
+
+  async function loadProject() {
+    if (!id) return;
+    try {
+      const pSnap = await getDoc(doc(db, 'projects', id));
+      if (pSnap.exists() && contentDiv) {
+        const p = pSnap.data();
+        contentDiv.innerHTML = `
+          <h1 class="text-4xl font-bold mb-4 text-white">${p.title}</h1>
+          <p class="text-blue-400 mb-8 font-bold">${p.category_name}</p>
+          <img src="${p.cover_image_url || '/placeholder.png'}" class="w-full rounded-lg mb-8 shadow-2xl border border-gray-700" />
+          <p class="text-lg text-gray-300 text-left whitespace-pre-wrap mb-10">${p.description}</p>
+          <a href="/portafolio" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">Volver</a>
+        `;
+        contentDiv.classList.remove('hidden');
+        loadingDiv?.classList.add('hidden');
+      }
+    } catch (e) { console.error(e); }
+  }
+  loadProject();
+</script>

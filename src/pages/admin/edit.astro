@@ -1,47 +1,48 @@
 ---
-import Layout from '../../../layouts/Layout.astro';
+import Layout from '../../layouts/Layout.astro';
 ---
 <Layout title="Editar Proyecto">
   <div id="loading-screen" class="flex justify-center items-center h-64 text-white">
     <p class="text-xl italic animate-pulse">Cargando datos...</p>
   </div>
-
   <div id="admin-content" class="hidden container mx-auto mt-10 px-4 text-white">
-    <h1 class="text-4xl font-bold mb-6 text-center">Editar Proyecto</h1>
+    <h1 class="text-4xl font-bold mb-6 text-center text-white">Editar Proyecto</h1>
     <form id="edit-project-form" class="bg-gray-800 p-8 rounded-lg shadow-lg max-w-2xl mx-auto border border-gray-700">
       <div class="mb-4">
         <label class="block mb-2 text-white">Título</label>
-        <input type="text" id="title" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" required />
+        <input type="text" id="title" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white outline-none focus:border-blue-500" required />
       </div>
       <div class="mb-4">
         <label class="block mb-2 text-white">Categoría</label>
-        <select id="category-select" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" required></select>
+        <select id="category-select" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white outline-none focus:border-blue-500" required></select>
       </div>
       <div class="mb-4">
         <label class="block mb-2 text-white">Descripción</label>
-        <textarea id="description" rows="4" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"></textarea>
+        <textarea id="description" rows="4" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white outline-none focus:border-blue-500"></textarea>
       </div>
       <div class="mb-4">
         <label class="block mb-2 text-white">URL Imagen</label>
-        <input type="text" id="cover_image_url" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+        <input type="text" id="cover_image_url" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white outline-none focus:border-blue-500" />
       </div>
-      <button type="submit" class="w-full bg-blue-600 py-2 rounded font-bold text-white">Actualizar</button>
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Actualizar Proyecto</button>
     </form>
   </div>
 </Layout>
 
 <script>
-  import { auth, db } from '../../../lib/firebase';
+  import { auth, db } from '../../lib/firebase';
   import { onAuthStateChanged } from 'firebase/auth';
   import { doc, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
 
-  const id = window.location.pathname.split('/').pop();
+  // OBTENEMOS EL ID DESDE EL PARÁMETRO ?id=...
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get('id');
 
   onAuthStateChanged(auth, async (user) => {
     if (user && id) {
       await loadInitialData(id);
-      document.getElementById('admin-content').classList.remove('hidden');
-      document.getElementById('loading-screen').classList.add('hidden');
+      document.getElementById('admin-content')?.classList.remove('hidden');
+      document.getElementById('loading-screen')?.classList.add('hidden');
     } else {
       window.location.href = '/admin/login';
     }
@@ -50,13 +51,11 @@ import Layout from '../../../layouts/Layout.astro';
   async function loadInitialData(projectId) {
     const pSnap = await getDoc(doc(db, 'projects', projectId));
     const cSnap = await getDocs(collection(db, 'categories'));
-    
     if (pSnap.exists()) {
       const p = pSnap.data();
       document.getElementById('title').value = p.title;
       document.getElementById('description').value = p.description;
       document.getElementById('cover_image_url').value = p.cover_image_url;
-
       const select = document.getElementById('category-select');
       cSnap.forEach(d => {
         const opt = document.createElement('option');

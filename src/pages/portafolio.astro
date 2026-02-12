@@ -3,38 +3,65 @@ import Layout from '../layouts/Layout.astro';
 import { db } from '../lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
-type Project = { id: string; title: string; category_name: string; cover_image_url: string; };
+// Obtenemos los PROYECTOS de la base de datos
+type Project = {
+  id: string;
+  title: string;
+  category_name: string;
+  cover_image_url: string;
+}
+
 const projectsCol = collection(db, 'projects');
 const projectsSnapshot = await getDocs(projectsCol);
-const projects: Project[] = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
 
-type Category = { id: string; name: string; slug: string; }
+const projects: Project[] = projectsSnapshot.docs.map(doc => ({
+  id: doc.id,
+  ...doc.data()
+} as Project));
+
+// Obtenemos las CATEGORÍAS para los botones de filtro
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+}
 const categoriesCol = collection(db, 'categories');
 const categoriesSnapshot = await getDocs(categoriesCol);
-const categories: Category[] = categoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+const categories: Category[] = categoriesSnapshot.docs.map(doc => ({
+  id: doc.id,
+  ...doc.data()
+} as Category));
 ---
 
 <Layout title="Portafolio Profesional">
   <div class="container mx-auto mt-10 px-4">
-    <h1 class="text-4xl font-bold mb-8 text-center text-white">Mi Portafolio Profesional</h1>
+    <h1 class="text-4xl font-bold mb-8 text-center text-white font-sans">Mi Portafolio Profesional</h1>
     
+    {/* Contenedor de Botones de Filtro */}
     <div id="filter-buttons" class="flex justify-center space-x-4 mb-12 flex-wrap gap-y-4">
-      <button class="filter-btn bg-blue-600 text-white font-bold py-2 px-4 rounded" data-category="all">Todos</button>
+      <button class="filter-btn bg-blue-600 text-white font-bold py-2 px-4 rounded transition-all shadow-lg" data-category="all">Todos</button>
       {categories.map(category => (
-        <button class="filter-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded" data-category={category.name}>{category.name}</button>
+        <button class="filter-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-all shadow-md" data-category={category.name}>{category.name}</button>
       ))}
     </div>
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
       {projects.map(project => (
-        <a href={`/portafolio/${project.id}`} class="project-card group block bg-gray-800 rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300" data-category={project.category_name}>
-          <div class="relative h-48 bg-gray-700 flex items-center justify-center">
-            <img src={project.cover_image_url || 'https://via.placeholder.com/400x225.png?text=Freddy+Vásquez'} alt={`Imagen de ${project.title}`} class="max-w-full max-h-full object-contain p-4">
+        /* ¡CAMBIO CLAVE AQUÍ PARA EL ENLACE DE DETALLE! */
+        <a href={`/portafolio/detalle?id=${project.id}`} class="project-card group block bg-gray-800 rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition-all duration-300 border border-gray-700" data-category={project.category_name}>
+          <div class="relative h-48 bg-gray-700 flex items-center justify-center border-b border-gray-700">
+            <img 
+                src={project.cover_image_url || 'https://via.placeholder.com/400x225.png?text=Freddy+Vásquez'} 
+                alt={`Imagen de ${project.title}`} 
+                class="max-w-full max-h-full object-contain p-4 drop-shadow-xl"
+            >
           </div>
           <div class="p-6">
-            <span class="text-sm font-semibold text-blue-400">{project.category_name}</span>
-            <h2 class="text-2xl font-bold mt-2 mb-4 group-hover:text-blue-300 text-white">{project.title}</h2>
-            <p class="text-blue-400 font-semibold">Ver detalles &rarr;</p>
+            <span class="text-sm font-semibold text-blue-400 uppercase tracking-wider">{project.category_name}</span>
+            <h2 class="text-2xl font-bold mt-2 mb-4 group-hover:text-blue-300 text-white leading-tight">{project.title}</h2>
+            <div class="flex items-center text-blue-400 font-bold group-hover:translate-x-2 transition-transform">
+                Ver detalles <span class="ml-2">→</span>
+            </div>
           </div>
         </a>
       ))}
@@ -48,13 +75,17 @@ const categories: Category[] = categoriesSnapshot.docs.map(doc => ({ id: doc.id,
 
   filterButtons.forEach(button => {
     button.addEventListener('click', () => {
-      filterButtons.forEach(btn => btn.classList.remove('bg-blue-600'));
-      filterButtons.forEach(btn => btn.classList.add('bg-gray-700'));
-      button.classList.remove('bg-gray-700');
-      button.classList.add('bg-blue-600');
+      // Cambiar estilos de botones activos/inactivos
+      filterButtons.forEach(btn => {
+          btn.classList.remove('bg-blue-600', 'shadow-lg');
+          btn.classList.add('bg-gray-700', 'shadow-md');
+      });
+      button.classList.remove('bg-gray-700', 'shadow-md');
+      button.classList.add('bg-blue-600', 'shadow-lg');
       
       const category = (button as HTMLElement).dataset.category;
 
+      // Filtrar tarjetas
       projectCards.forEach(card => {
         const cardCategory = (card as HTMLElement).dataset.category;
         if (category === 'all' || cardCategory === category) {
